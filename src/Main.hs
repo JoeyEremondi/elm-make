@@ -26,6 +26,7 @@ import qualified Generate
 import TheMasterPlan
     ( ModuleID(ModuleID), Location, PackageID
     , ProjectSummary(..), ProjectData(..), completedInterfaces
+    , moduleName
     )
 
 
@@ -71,7 +72,7 @@ run args =
             completedInterfaces buildSummary
 
       --TODO build this into the error system? should never fail if we get to this point
-      let mainIfaces = List.map (ifaces Map.!) moduleForGeneration  
+      let mainIfaces = List.map (\modID -> (moduleName modID, ifaces Map.! modID)) moduleForGeneration  
 
       cachePath <- ask
       docs <-

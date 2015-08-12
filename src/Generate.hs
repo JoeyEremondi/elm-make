@@ -50,14 +50,14 @@ generate
     -> Map.Map ModuleID [ModuleID]
     -> Map.Map ModuleID Location
     -> [ModuleID]
-    -> [Module.Interface]
+    -> [(Module.Name, Module.Interface)]
     -> FilePath
     -> m ()
 
-generate _cachePath _dependencies _natives [] _targetNames _outputFile =
+generate _cachePath _dependencies _natives [] _targetIfaces _outputFile =
   return ()
 
-generate cachePath dependencies natives moduleIDs targetNames outputFile =
+generate cachePath dependencies natives moduleIDs targetIfaces outputFile =
   do  let objectFiles =
             setupNodes cachePath dependencies natives
               |> getReachableObjectFiles moduleIDs
@@ -65,7 +65,9 @@ generate cachePath dependencies natives moduleIDs targetNames outputFile =
       objects <- liftIO $ forM objectFiles readObject
 
       let usedDefs =
-            Compiler.getUsedDefs (map Compiler._fnRefGraph objects) targetNames
+            Compiler.getUsedDefs
+              (map (\x -> ( Compiler._objModule x, Compiler._fnRefGraph x)) objects)
+              targetIfaces
 
           cleanedObjects =
             map (Compiler.cleanObject usedDefs) objects
