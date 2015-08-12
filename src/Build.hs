@@ -155,7 +155,7 @@ buildManager env state =
             Right (Compiler.Result maybeDocs interface js) ->
               do  let cache = cachePath env
                   File.writeBinary (Path.toInterface cache moduleID) interface
-                  writeFile (Path.toObjectFile cache moduleID) js
+                  writeFile (Path.toObjectFile cache moduleID) (show js)
                   Chan.writeChan (reportChan env) (Report.Complete moduleID)
                   buildManager env (registerSuccess env state moduleID interface maybeDocs threadId)
 

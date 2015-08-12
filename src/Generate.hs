@@ -24,6 +24,7 @@ import qualified Text.Blaze.Renderer.Text as Blaze
 
 import Elm.Utils ((|>))
 import qualified Elm.Compiler.Module as Module
+import qualified Elm.Compiler as Compiler
 import qualified Elm.Docs as Docs
 import qualified Path
 import TheMasterPlan ( ModuleID(ModuleID), Location )
@@ -79,10 +80,24 @@ generate cachePath dependencies natives moduleIDs outputFile =
           File.withFileUtf8 outputFile WriteMode $ \handle ->
               do  Text.hPutStrLn handle header
                   forM_ objectFiles $ \jsFile ->
-                      Text.hPutStrLn handle =<< File.readTextUtf8 jsFile
+                      --TODO text?
+                      do  objText <- readFile jsFile --File.readTextUtf8 jsFile
+                          let objJS = (objToJS . read ) objText
+                          return $ Text.hPutStrLn handle objJS
 
       liftIO (putStrLn ("Successfully generated " ++ outputFile))
 
+
+objToJS :: Compiler.Object -> Text.Text
+objToJS obj =
+  Text.concat
+  [ Compiler._topHeader obj
+  , Text.pack "function(_elm){\n"
+  , Compiler._fnHeader obj
+  , Text.concat $ map snd $ Compiler._fnDefs obj
+  , Compiler._fnFooter obj
+  , Text.pack "};"
+  ]
 
 header :: Text.Text
 header =
