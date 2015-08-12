@@ -25,7 +25,7 @@ import qualified Elm.Package.Solution as Solution
 import qualified Generate
 import TheMasterPlan
     ( ModuleID(ModuleID), Location, PackageID
-    , ProjectSummary(..), ProjectData(..)
+    , ProjectSummary(..), ProjectData(..), completedInterfaces
     )
 
 
@@ -67,6 +67,12 @@ run args =
       buildSummary <-
           LoadInterfaces.prepForBuild modulesToDocument projectSummary
 
+      let ifaces =
+            completedInterfaces buildSummary
+
+      --TODO build this into the error system? should never fail if we get to this point
+      let mainIfaces = List.map (ifaces Map.!) moduleForGeneration  
+
       cachePath <- ask
       docs <-
         liftIO $
@@ -88,6 +94,7 @@ run args =
           dependencies
           (projectNatives projectSummary)
           moduleForGeneration
+          mainIfaces
           (maybe "elm.js" id (Arguments.outputFile args))
 
 

@@ -2,7 +2,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Generate where
 
-import Control.Monad.Except (MonadError, MonadIO, forM_, liftIO, throwError)
+import Control.Monad.Except (MonadError, MonadIO, forM_, forM, liftIO, throwError)
 import qualified Data.Graph as Graph
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
@@ -50,13 +50,14 @@ generate
     -> Map.Map ModuleID [ModuleID]
     -> Map.Map ModuleID Location
     -> [ModuleID]
+    -> [Module.Interface]
     -> FilePath
     -> m ()
 
-generate _cachePath _dependencies _natives [] _outputFile =
+generate _cachePath _dependencies _natives [] _targetNames _outputFile =
   return ()
 
-generate cachePath dependencies natives moduleIDs outputFile =
+generate cachePath dependencies natives moduleIDs targetNames outputFile =
   do  let objectFiles =
             setupNodes cachePath dependencies natives
               |> getReachableObjectFiles moduleIDs
@@ -68,8 +69,8 @@ generate cachePath dependencies natives moduleIDs outputFile =
           case moduleIDs of
             [ModuleID moduleName _] ->
               liftIO $
-                do  js <- mapM File.readTextUtf8 objectFiles
-                    let outputText = html (Text.concat (header:js)) moduleName
+                do  js <- combineObjects objectFiles
+                    let outputText = html (Text.concat ([header, js])) moduleName
                     LazyText.writeFile outputFile outputText
 
             _ ->
@@ -79,14 +80,18 @@ generate cachePath dependencies natives moduleIDs outputFile =
           liftIO $
           File.withFileUtf8 outputFile WriteMode $ \handle ->
               do  Text.hPutStrLn handle header
-                  forM_ objectFiles $ \jsFile ->
-                      --TODO text?
-                      do  objText <- readFile jsFile --File.readTextUtf8 jsFile
-                          let objJS = (objToJS . read ) objText
-                          return $ Text.hPutStrLn handle objJS
+                  objJS <- combineObjects objectFiles
+                  Text.hPutStrLn handle objJS
 
       liftIO (putStrLn ("Successfully generated " ++ outputFile))
 
+
+combineObjects :: [String] -> IO Text.Text
+combineObjects objectFiles =
+  fmap Text.concat $ forM objectFiles $ \jsFile ->
+    do  objText <- readFile jsFile
+        return $ (objToJS . read ) objText
+        
 
 objToJS :: Compiler.Object -> Text.Text
 objToJS obj =
@@ -98,6 +103,7 @@ objToJS obj =
   , Compiler._fnFooter obj
   , Text.pack "};"
   ]
+
 
 header :: Text.Text
 header =
