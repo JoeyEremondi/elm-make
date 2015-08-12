@@ -62,6 +62,17 @@ generate cachePath dependencies natives moduleIDs targetNames outputFile =
             setupNodes cachePath dependencies natives
               |> getReachableObjectFiles moduleIDs
 
+      objects <- liftIO $ forM objectFiles readObject
+
+      let usedDefs =
+            Compiler.getUsedDefs (map Compiler._fnRefGraph objects) targetNames
+
+          cleanedObjects =
+            map (Compiler.cleanObject usedDefs) objects
+      
+          js =
+            Text.concat $ map objToJS cleanedObjects
+      
       liftIO (createDirectoryIfMissing True (dropFileName outputFile))
 
       case takeExtension outputFile of
@@ -69,8 +80,7 @@ generate cachePath dependencies natives moduleIDs targetNames outputFile =
           case moduleIDs of
             [ModuleID moduleName _] ->
               liftIO $
-                do  js <- combineObjects objectFiles
-                    let outputText = html (Text.concat ([header, js])) moduleName
+                do  let outputText = html (Text.concat ([header, js])) moduleName
                     LazyText.writeFile outputFile outputText
 
             _ ->
@@ -80,17 +90,16 @@ generate cachePath dependencies natives moduleIDs targetNames outputFile =
           liftIO $
           File.withFileUtf8 outputFile WriteMode $ \handle ->
               do  Text.hPutStrLn handle header
-                  objJS <- combineObjects objectFiles
-                  Text.hPutStrLn handle objJS
+                  Text.hPutStrLn handle js
 
       liftIO (putStrLn ("Successfully generated " ++ outputFile))
 
 
-combineObjects :: [String] -> IO Text.Text
-combineObjects objectFiles =
-  fmap Text.concat $ forM objectFiles $ \jsFile ->
-    do  objText <- readFile jsFile
-        return $ (objToJS . read ) objText
+readObject :: String -> IO Compiler.Object
+readObject jsFile =
+  do  objText <- readFile jsFile
+      return $ read objText
+
         
 
 objToJS :: Compiler.Object -> Text.Text
