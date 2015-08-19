@@ -108,12 +108,8 @@ generate cachePath dependencies natives moduleIDs targetIfaces outputFile =
 
 
 readObject :: String -> IO Compiler.Object
-readObject jsFile =
-  do  putStrLn $ "Reading " ++ jsFile
-      out <- Binary.decodeFile jsFile
-      putStrLn $ "Read " ++ jsFile
-      return out
-      
+readObject =
+  Binary.decodeFile
 
         
 
