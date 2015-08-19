@@ -71,7 +71,7 @@ generate cachePath dependencies natives moduleIDs targetIfaces outputFile =
           nativeFiles =
             filter ( (List.isSuffixOf ".js") ) jsFiles
             
-      objects <- liftIO $ forM objFiles readObject
+      objects <- liftIO $ forM objFiles Binary.decodeFile
       nativeJs <- liftIO $ Text.concat `fmap` forM nativeFiles Text.readFile
 
       let usedDefs =
@@ -83,7 +83,7 @@ generate cachePath dependencies natives moduleIDs targetIfaces outputFile =
             map (Compiler.cleanObject usedDefs) objects
       
           js =
-            Text.concat $ (nativeJs : map objToJS cleanedObjects)
+            Text.concat $ (nativeJs : map Compiler.renderObject cleanedObjects)
       
       liftIO (createDirectoryIfMissing True (dropFileName outputFile))
 
@@ -105,38 +105,6 @@ generate cachePath dependencies natives moduleIDs targetIfaces outputFile =
                   Text.hPutStrLn handle js
 
       liftIO (putStrLn ("Successfully generated " ++ outputFile))
-
-
-readObject :: String -> IO Compiler.Object
-readObject =
-  Binary.decodeFile
-
-        
-
-objToJS :: Compiler.Object -> Text.Text
-objToJS obj =
-  let
-    Module.Name nameList = Compiler._objModule obj
-    makeName =
-      List.intercalate "." (["Elm"] ++ nameList ++ ["make"] )
-    valuesName =
-      List.intercalate "." (["_elm"] ++ nameList ++ ["values"] )
-    valuesList =
-      "{ " ++
-      List.intercalate ", "
-      (map (\nm -> nm ++ ": " ++ nm ) $ map fst $ Compiler._fnDefs obj )
-      ++ "};"
-  in
-    Text.concat
-    [ Compiler._topHeader obj
-    , Text.pack ("\n" ++ makeName ++ " = function(_elm){\n")
-    , Compiler._fnHeader obj
-    , Text.concat $ map snd $ Compiler._fnDefs obj
-    , Text.pack $ valuesName ++ " = " ++ valuesList
-        ++ "\nreturn "
-        ++ valuesName ++ ";"
-    , Text.pack "};"
-    ]
 
 
 header :: Text.Text
