@@ -27,7 +27,7 @@ import qualified Generate
 import qualified Utils.File as File
 import TheMasterPlan
     ( ModuleID(ModuleID), Location, PackageID
-    , ProjectSummary(..), ProjectData(..), completedInterfaces
+    , ProjectSummary(..), ProjectData(..)
     , moduleName
     )
 
@@ -70,13 +70,6 @@ run args =
       buildSummary <-
           LoadInterfaces.prepForBuild modulesToDocument projectSummary
 
-      let ifaces =
-            completedInterfaces buildSummary
-
-      --TODO build this into the error system? should never fail if we get to this point
-      --TODO avoid code duplication
-
-      
         
       cachePath <- ask
       docs <-
