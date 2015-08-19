@@ -13,6 +13,7 @@ import qualified Data.Text.Lazy as LazyText
 import qualified Data.Text.Lazy.Encoding as LazyText
 import qualified Data.Text.Lazy.IO as LazyText
 import qualified Data.Tree as Tree
+import qualified Data.List as List
 import System.Directory ( createDirectoryIfMissing )
 import System.FilePath ( dropFileName, takeExtension )
 import System.IO ( IOMode(WriteMode) )
@@ -21,6 +22,8 @@ import Text.Blaze.Html5 ((!))
 import qualified Text.Blaze.Html5 as H
 import qualified Text.Blaze.Html5.Attributes as A
 import qualified Text.Blaze.Renderer.Text as Blaze
+
+import qualified Data.Binary as Binary
 
 import Elm.Utils ((|>))
 import qualified Elm.Compiler.Module as Module
@@ -58,11 +61,18 @@ generate _cachePath _dependencies _natives [] _targetIfaces _outputFile =
   return ()
 
 generate cachePath dependencies natives moduleIDs targetIfaces outputFile =
-  do  let objectFiles =
+  do  let jsFiles =
             setupNodes cachePath dependencies natives
               |> getReachableObjectFiles moduleIDs
 
-      objects <- liftIO $ forM objectFiles readObject
+          objFiles =
+            filter ( (List.isSuffixOf ".elmo") ) jsFiles
+          
+          nativeFiles =
+            filter ( (List.isSuffixOf ".js") ) jsFiles
+            
+      objects <- liftIO $ forM objFiles readObject
+      nativeJs <- liftIO $ Text.concat `fmap` forM nativeFiles Text.readFile
 
       let usedDefs =
             Compiler.getUsedDefs
@@ -73,7 +83,7 @@ generate cachePath dependencies natives moduleIDs targetIfaces outputFile =
             map (Compiler.cleanObject usedDefs) objects
       
           js =
-            Text.concat $ map objToJS cleanedObjects
+            Text.concat $ (nativeJs : map objToJS cleanedObjects)
       
       liftIO (createDirectoryIfMissing True (dropFileName outputFile))
 
@@ -99,21 +109,38 @@ generate cachePath dependencies natives moduleIDs targetIfaces outputFile =
 
 readObject :: String -> IO Compiler.Object
 readObject jsFile =
-  do  objText <- readFile jsFile
-      return $ read objText
+  do  putStrLn $ "Reading " ++ jsFile
+      out <- Binary.decodeFile jsFile
+      putStrLn $ "Read " ++ jsFile
+      return out
+      
 
         
 
 objToJS :: Compiler.Object -> Text.Text
 objToJS obj =
-  Text.concat
-  [ Compiler._topHeader obj
-  , Text.pack "function(_elm){\n"
-  , Compiler._fnHeader obj
-  , Text.concat $ map snd $ Compiler._fnDefs obj
-  , Compiler._fnFooter obj
-  , Text.pack "};"
-  ]
+  let
+    Module.Name nameList = Compiler._objModule obj
+    makeName =
+      List.intercalate "." (["Elm"] ++ nameList ++ ["make"] )
+    valuesName =
+      List.intercalate "." (["_elm"] ++ nameList ++ ["values"] )
+    valuesList =
+      "{ " ++
+      List.intercalate ", "
+      (map (\nm -> nm ++ ": " ++ nm ) $ map fst $ Compiler._fnDefs obj )
+      ++ "};"
+  in
+    Text.concat
+    [ Compiler._topHeader obj
+    , Text.pack ("\n" ++ makeName ++ " = function(_elm){\n")
+    , Compiler._fnHeader obj
+    , Text.concat $ map snd $ Compiler._fnDefs obj
+    , Text.pack $ valuesName ++ " = " ++ valuesList
+        ++ "\nreturn "
+        ++ valuesName ++ ";"
+    , Text.pack "};"
+    ]
 
 
 header :: Text.Text

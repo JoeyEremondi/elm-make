@@ -18,11 +18,13 @@ import qualified CrawlPackage
 import qualified CrawlProject
 import qualified LoadInterfaces
 import qualified Arguments
+import qualified Path
 import qualified Elm.Package.Description as Desc
 import qualified Elm.Package.Initialize as Initialize
 import qualified Elm.Package.Paths as Path
 import qualified Elm.Package.Solution as Solution
 import qualified Generate
+import qualified Utils.File as File
 import TheMasterPlan
     ( ModuleID(ModuleID), Location, PackageID
     , ProjectSummary(..), ProjectData(..), completedInterfaces
@@ -72,8 +74,10 @@ run args =
             completedInterfaces buildSummary
 
       --TODO build this into the error system? should never fail if we get to this point
-      let mainIfaces = List.map (\modID -> (moduleName modID, ifaces Map.! modID)) moduleForGeneration  
+      --TODO avoid code duplication
 
+      
+        
       cachePath <- ask
       docs <-
         liftIO $
@@ -89,6 +93,13 @@ run args =
             buildSummary
 
       maybe (return ()) (Generate.docs docs) (Arguments.docs args)
+
+      mainIfaces <-
+        forM moduleForGeneration $ \ modID ->
+          do  cacheRoot <- ask
+              let interfacePath = Path.toInterface cacheRoot modID
+              iface <- File.readBinary interfacePath
+              return (moduleName modID, iface )
 
       Generate.generate
           cachePath

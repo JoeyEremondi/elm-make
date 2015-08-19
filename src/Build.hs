@@ -6,6 +6,7 @@ import qualified Control.Concurrent.Chan as Chan
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
+import qualified Data.Binary as Binary
 import qualified Data.Set as Set
 
 import qualified Elm.Compiler as Compiler
@@ -152,10 +153,10 @@ buildManager env state =
                   (Report.Warn moduleID dealiaser path source warnings)
 
           case result of
-            Right (Compiler.Result maybeDocs interface js) ->
+            Right (Compiler.Result maybeDocs interface jsObj) ->
               do  let cache = cachePath env
                   File.writeBinary (Path.toInterface cache moduleID) interface
-                  writeFile (Path.toObjectFile cache moduleID) (show js)
+                  Binary.encodeFile (Path.toObjectFile cache moduleID) jsObj
                   Chan.writeChan (reportChan env) (Report.Complete moduleID)
                   buildManager env (registerSuccess env state moduleID interface maybeDocs threadId)
 
