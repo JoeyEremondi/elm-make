@@ -14,6 +14,7 @@ import qualified Data.Text.Lazy.Encoding as LazyText
 import qualified Data.Text.Lazy.IO as LazyText
 import qualified Data.Tree as Tree
 import qualified Data.List as List
+import qualified Data.Binary as Binary
 import System.Directory ( createDirectoryIfMissing )
 import System.FilePath ( dropFileName, takeExtension )
 import System.IO ( IOMode(WriteMode) )
@@ -22,8 +23,6 @@ import Text.Blaze.Html5 ((!))
 import qualified Text.Blaze.Html5 as H
 import qualified Text.Blaze.Html5.Attributes as A
 import qualified Text.Blaze.Renderer.Text as Blaze
-
-import qualified Data.Binary as Binary
 
 import Elm.Utils ((|>))
 import qualified Elm.Compiler.Module as Module
