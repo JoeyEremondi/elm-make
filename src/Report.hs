@@ -5,7 +5,7 @@ import Control.Monad (when)
 import qualified Data.Aeson as Json
 import qualified Data.ByteString.Lazy.Char8 as BS
 import qualified Elm.Compiler as Compiler
-import qualified Elm.Package.Name as Pkg
+import qualified Elm.Compiler.Package as Pkg
 import qualified Elm.Package.Paths as Path
 import qualified Elm.Package.Version as V
 import Elm.Utils ((|>))

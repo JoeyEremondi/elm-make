@@ -10,7 +10,7 @@ import Control.Applicative ((<$>), (<*>))
 import Data.Binary
 import qualified Data.Map as Map
 import qualified Elm.Compiler.Module as Module
-import qualified Elm.Package.Name as Pkg
+import qualified Elm.Compiler.Package as Pkg
 import qualified Elm.Package.Version as V
 
 

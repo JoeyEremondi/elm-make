@@ -9,7 +9,7 @@ import qualified Data.Set as Set
 import qualified Elm.Compiler as Compiler
 import qualified Elm.Compiler.Module as Module
 import qualified Elm.Docs as Docs
-import qualified Elm.Package.Name as Pkg
+import qualified Elm.Compiler.Package as Pkg
 
 import qualified BuildManager as BM
 import qualified Path
@@ -29,6 +29,7 @@ data Env = Env
     , resultChan :: Chan.Chan Result
     , reportChan :: Chan.Chan Report.Message
     , docsChan :: Chan.Chan [Docs.Documentation]
+    , dependencies :: Map.Map CanonicalModule [CanonicalModule]
     , reverseDependencies :: Map.Map CanonicalModule [CanonicalModule]
     , cachePath :: FilePath
     , exposedModules :: Set.Set CanonicalModule
@@ -69,6 +70,7 @@ initEnv numProcessors cachePath exposedModules modulesForGeneration dependencies
         , resultChan = resultChan
         , reportChan = reportChan
         , docsChan = docsChan
+        , dependencies = dependencies
         , reverseDependencies = reverseGraph dependencies
         , cachePath = cachePath
         , exposedModules = exposedModules
@@ -257,14 +259,30 @@ buildModule env interfaces (modul, location) =
   let
     (Pkg.Name user project) = fst (TMP.package modul)
     path = Path.toSource location
-    ifaces = Map.mapKeys TMP.name interfaces
+    foldFun mod iface mapSoFar =
+      case Map.lookup (TMP.name mod) mapSoFar of
+        Nothing ->
+          Map.insert (TMP.name mod) [iface] mapSoFar
+
+        Just otherIfaces ->
+          Map.insert (TMP.name mod) (iface : otherIfaces) mapSoFar
+          
+    ifaces =
+      Map.foldrWithKey foldFun Map.empty interfaces
     isRoot = Set.member modul (modulesForGeneration env)
     isExposed = Set.member modul (exposedModules env)
   in
   do  source <- readFile path
 
+      let ourDeps =
+            case Map.lookup modul (dependencies env) of
+              Just depList -> depList
+
+      let pkgMap =
+            Map.fromList $ map (\canonMod -> (TMP.name canonMod, fst $ TMP.package canonMod ) ) ourDeps
+
       let context =
-            Compiler.Context user project isRoot isExposed
+            Compiler.Context user project isRoot isExposed pkgMap
 
       let (dealiaser, warnings, rawResult) =
             Compiler.compile context source ifaces
