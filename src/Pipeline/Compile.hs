@@ -29,6 +29,7 @@ data Env = Env
     , resultChan :: Chan.Chan Result
     , reportChan :: Chan.Chan Report.Message
     , docsChan :: Chan.Chan [Docs.Documentation]
+    , dependencies :: Map.Map CanonicalModule [CanonicalModule]
     , reverseDependencies :: Map.Map CanonicalModule [CanonicalModule]
     , cachePath :: FilePath
     , exposedModules :: Set.Set CanonicalModule
@@ -69,6 +70,7 @@ initEnv numProcessors cachePath exposedModules modulesForGeneration dependencies
         , resultChan = resultChan
         , reportChan = reportChan
         , docsChan = docsChan
+        , dependencies = dependencies
         , reverseDependencies = reverseGraph dependencies
         , cachePath = cachePath
         , exposedModules = exposedModules
@@ -257,14 +259,19 @@ buildModule env interfaces (modul, location) =
   let
     packageName = fst (TMP.package modul)
     path = Path.toSource location
-    ifaces = Map.mapKeys TMP.name interfaces
+    ifaces = Map.mapKeys (\cmod -> error "Make CanonicalName" ) interfaces
     isRoot = Set.member modul (modulesForGeneration env)
     isExposed = Set.member modul (exposedModules env)
+    importDict =
+      case Map.lookup modul (dependencies env) of
+        Just imported ->
+          Map.fromList $
+            map (\m -> ( TMP.name m, fst $ TMP.package m) ) imported
   in
   do  source <- readFile path
 
       let context =
-            Compiler.Context packageName isRoot isExposed
+            Compiler.Context packageName isRoot isExposed importDict
 
       let (dealiaser, warnings, rawResult) =
             Compiler.compile context source ifaces
