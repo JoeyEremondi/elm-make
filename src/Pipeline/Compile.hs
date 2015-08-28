@@ -259,7 +259,6 @@ buildModule env interfaces (modul, location) =
   let
     packageName = Module.canonPkg modul
     path = Path.toSource location
-    ifaces = Map.mapKeys (\cmod -> error "Make CanonicalName" ) interfaces
     isRoot = Set.member modul (modulesForGeneration env)
     isExposed = Set.member modul (exposedModules env)
     importDict =
@@ -274,7 +273,7 @@ buildModule env interfaces (modul, location) =
             Compiler.Context packageName isRoot isExposed importDict
 
       let (dealiaser, warnings, rawResult) =
-            Compiler.compile context source ifaces
+            Compiler.compile context source interfaces
 
       threadId <- myThreadId
       let result =
