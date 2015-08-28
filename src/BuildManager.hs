@@ -117,7 +117,7 @@ data Error
     = BadFlags
     | CompilerErrors FilePath String [Compiler.Error]
     | CorruptedArtifact FilePath
-    | Cycle [TMP.CanonicalModule]
+    | Cycle [Module.CanonicalName]
     | PackageProblem String
     | MissingPackage Pkg.Name
     | ModuleNotFound Module.Name (Maybe Module.Name)

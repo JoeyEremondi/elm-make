@@ -188,7 +188,7 @@ readPackageData pkgName maybeName filePath =
       checkName filePath name maybeName
 
       let deps =
-            if pkgName == TMP.core
+            if pkgName == Pkg.coreName
               then rawDeps
               else Module.defaultImports ++ rawDeps
 

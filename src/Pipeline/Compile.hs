@@ -18,7 +18,7 @@ import qualified Utils.File as File
 import qualified Utils.Queue as Queue
 import qualified TheMasterPlan as TMP
 import TheMasterPlan
-    ( CanonicalModule, Location, Package
+    ( Location
     , BuildGraph(BuildGraph), BuildData(..)
     )
 
@@ -29,20 +29,20 @@ data Env = Env
     , resultChan :: Chan.Chan Result
     , reportChan :: Chan.Chan Report.Message
     , docsChan :: Chan.Chan [Docs.Documentation]
-    , dependencies :: Map.Map CanonicalModule [CanonicalModule]
-    , reverseDependencies :: Map.Map CanonicalModule [CanonicalModule]
+    , dependencies :: Map.Map Module.CanonicalName [Module.CanonicalName]
+    , reverseDependencies :: Map.Map Module.CanonicalName [Module.CanonicalName]
     , cachePath :: FilePath
-    , exposedModules :: Set.Set CanonicalModule
-    , modulesForGeneration :: Set.Set CanonicalModule
+    , exposedModules :: Set.Set Module.CanonicalName
+    , modulesForGeneration :: Set.Set Module.CanonicalName
     }
 
 
 data State = State
     { currentState :: CurrentState
     , activeThreads :: Set.Set ThreadId
-    , readyQueue :: Queue.Queue (CanonicalModule, Location)
-    , blockedModules :: Map.Map CanonicalModule BuildData
-    , completedInterfaces :: Map.Map CanonicalModule Module.Interface
+    , readyQueue :: Queue.Queue (Module.CanonicalName, Location)
+    , blockedModules :: Map.Map Module.CanonicalName BuildData
+    , completedInterfaces :: Map.Map Module.CanonicalName Module.Interface
     , documentation :: [Docs.Documentation]
     }
 
@@ -55,9 +55,9 @@ data CurrentState = Wait | Update
 initEnv
     :: Int
     -> FilePath
-    -> Set.Set CanonicalModule
-    -> [CanonicalModule]
-    -> Map.Map CanonicalModule [CanonicalModule]
+    -> Set.Set Module.CanonicalName
+    -> [Module.CanonicalName]
+    -> Map.Map Module.CanonicalName [Module.CanonicalName]
     -> BuildGraph
     -> IO Env
 initEnv numProcessors cachePath exposedModules modulesForGeneration dependencies (BuildGraph blocked _completed) =
@@ -121,10 +121,10 @@ numIncompleteTasks state =
 build
     :: BM.Config
     -> Int
-    -> Package
-    -> Set.Set CanonicalModule
-    -> [CanonicalModule]
-    -> Map.Map CanonicalModule [CanonicalModule]
+    -> Pkg.Package
+    -> Set.Set Module.CanonicalName
+    -> [Module.CanonicalName]
+    -> Map.Map Module.CanonicalName [Module.CanonicalName]
     -> BuildGraph
     -> IO [Docs.Documentation]
 build config numProcessors rootPkg exposedModules modulesForGeneration dependencies summary =
@@ -193,7 +193,7 @@ registerFailure state threadId =
 registerSuccess
     :: Env
     -> State
-    -> CanonicalModule
+    -> Module.CanonicalName
     -> Module.Interface
     -> Maybe Docs.Documentation
     -> ThreadId
@@ -223,10 +223,10 @@ registerSuccess env state name interface maybeDocs threadId =
 
 
 updateBlockedModules
-    :: CanonicalModule
-    -> Map.Map CanonicalModule BuildData
-    -> CanonicalModule
-    -> (Map.Map CanonicalModule BuildData, Maybe (CanonicalModule, Location))
+    :: Module.CanonicalName
+    -> Map.Map Module.CanonicalName BuildData
+    -> Module.CanonicalName
+    -> (Map.Map Module.CanonicalName BuildData, Maybe (Module.CanonicalName, Location))
 updateBlockedModules modul blockedModules potentiallyFreedModule =
   case Map.lookup potentiallyFreedModule blockedModules of
     Nothing ->
@@ -252,12 +252,12 @@ updateBlockedModules modul blockedModules potentiallyFreedModule =
 
 buildModule
     :: Env
-    -> Map.Map CanonicalModule Module.Interface
-    -> (CanonicalModule, Location)
+    -> Map.Map Module.CanonicalName Module.Interface
+    -> (Module.CanonicalName, Location)
     -> IO ()
 buildModule env interfaces (modul, location) =
   let
-    packageName = fst (TMP.package modul)
+    packageName = Module.canonPkg modul
     path = Path.toSource location
     ifaces = Map.mapKeys (\cmod -> error "Make CanonicalName" ) interfaces
     isRoot = Set.member modul (modulesForGeneration env)
@@ -266,7 +266,7 @@ buildModule env interfaces (modul, location) =
       case Map.lookup modul (dependencies env) of
         Just imported ->
           Map.fromList $
-            map (\m -> ( TMP.name m, fst $ TMP.package m) ) imported
+            map (\m -> ( Module.canonModul m, Module.canonPkg m) ) imported
   in
   do  source <- readFile path
 
@@ -286,7 +286,7 @@ buildModule env interfaces (modul, location) =
 data Result = Result
     { _source :: String
     , _path :: FilePath
-    , _moduleID :: CanonicalModule
+    , _moduleID :: Module.CanonicalName
     , _threadId :: ThreadId
     , _dealiaser :: Compiler.Dealiaser
     , _warnings :: [Compiler.Warning]

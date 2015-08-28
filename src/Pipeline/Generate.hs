@@ -26,7 +26,7 @@ import qualified Text.Blaze.Renderer.Text as Blaze
 
 import qualified BuildManager as BM
 import qualified Path
-import TheMasterPlan ( CanonicalModule(CanonicalModule), Location )
+import TheMasterPlan ( Location )
 import qualified Utils.File as File
 
 
@@ -45,9 +45,9 @@ docs docsList path =
 
 generate
     :: BM.Config
-    -> Map.Map CanonicalModule [CanonicalModule]
-    -> Map.Map CanonicalModule Location
-    -> [CanonicalModule]
+    -> Map.Map Module.CanonicalName [Module.CanonicalName]
+    -> Map.Map Module.CanonicalName Location
+    -> [Module.CanonicalName]
     -> BM.Task ()
 
 generate _config _dependencies _natives [] =
@@ -65,7 +65,7 @@ generate config dependencies natives rootModules =
         BM.Html outputFile ->
             liftIO $
               do  js <- mapM File.readTextUtf8 objectFiles
-                  let (Just (CanonicalModule _ moduleName)) = Maybe.listToMaybe rootModules
+                  let (Just (Module.CanonicalName _ _ moduleName)) = Maybe.listToMaybe rootModules
                   let outputText = html (Text.concat (header:js)) moduleName
                   LazyText.writeFile outputFile outputText
 
@@ -86,9 +86,9 @@ header =
 
 setupNodes
     :: FilePath
-    -> Map.Map CanonicalModule [CanonicalModule]
-    -> Map.Map CanonicalModule Location
-    -> [(FilePath, CanonicalModule, [CanonicalModule])]
+    -> Map.Map Module.CanonicalName [Module.CanonicalName]
+    -> Map.Map Module.CanonicalName Location
+    -> [(FilePath, Module.CanonicalName, [Module.CanonicalName])]
 setupNodes cachePath dependencies natives =
     let nativeNodes =
             Map.toList natives
@@ -102,8 +102,8 @@ setupNodes cachePath dependencies natives =
 
 
 getReachableObjectFiles
-    :: [CanonicalModule]
-    -> [(FilePath, CanonicalModule, [CanonicalModule])]
+    :: [Module.CanonicalName]
+    -> [(FilePath, Module.CanonicalName, [Module.CanonicalName])]
     -> [FilePath]
 getReachableObjectFiles moduleNames nodes =
     let (dependencyGraph, vertexToKey, keyToVertex) =

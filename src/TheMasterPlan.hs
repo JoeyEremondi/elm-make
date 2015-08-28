@@ -13,23 +13,6 @@ import qualified Elm.Compiler.Module as Module
 import qualified Elm.Package as Pkg
 
 
--- UNIQUE IDENTIFIERS FOR MODULES
-
-data CanonicalModule = CanonicalModule
-    { package :: Package
-    , name :: Module.Name
-    }
-    deriving (Eq, Ord)
-
-
-type Package = (Pkg.Name, Pkg.Version)
-
-
-core :: Pkg.Name
-core =
-    Pkg.Name "elm-lang" "core"
-
-
 -- CRAWL AN INDIVIDUAL PACKGE
 
 {-| Basic information about all modules that are part of a certain package.
@@ -45,7 +28,7 @@ file or package description.
 data PackageGraph = PackageGraph
     { packageData :: Map.Map Module.Name PackageData
     , packageNatives :: Map.Map Module.Name FilePath
-    , packageForeignDependencies :: Map.Map Module.Name Package
+    , packageForeignDependencies :: Map.Map Module.Name Pkg.Package
     }
 
 
@@ -63,20 +46,20 @@ bunch of PackageGraphs together, so we can write the rest of our code
 without thinking about package boundaries.
 -}
 data ProjectGraph a = ProjectGraph
-    { projectData :: Map.Map CanonicalModule (ProjectData a)
-    , projectNatives :: Map.Map CanonicalModule Location
+    { projectData :: Map.Map Module.CanonicalName (ProjectData a)
+    , projectNatives :: Map.Map Module.CanonicalName Location
     }
 
 
 data ProjectData a = ProjectData
     { projectLocation :: a
-    , projectDependencies :: [CanonicalModule]
+    , projectDependencies :: [Module.CanonicalName]
     }
 
 
 data Location = Location
     { _relativePath :: FilePath
-    , _package :: Package
+    , _package :: Pkg.Package
     }
 
 
@@ -89,8 +72,8 @@ these cached interfaces, so we filter out any stale interfaces.
 The resulting format is very convenient for managing parallel builds.
 -}
 data BuildGraph = BuildGraph
-    { blockedModules :: Map.Map CanonicalModule BuildData
-    , completedInterfaces :: Map.Map CanonicalModule Module.Interface
+    { blockedModules :: Map.Map Module.CanonicalName BuildData
+    , completedInterfaces :: Map.Map Module.CanonicalName Module.Interface
     }
 
 
@@ -104,19 +87,19 @@ produced. When 'blocking' is empty, it is safe to add this module to the build
 queue.
 -}
 data BuildData = BuildData
-    { blocking :: [CanonicalModule]
+    { blocking :: [Module.CanonicalName]
     , location :: Location
     }
 
 
 -- BINARY
 
-instance Binary CanonicalModule where
+instance Binary Module.CanonicalName where
   get =
-    CanonicalModule <$> get <*> get
+    Module.CanonicalName <$> get <*> get <*> get
 
-  put (CanonicalModule pkg nm) =
-    do  put pkg
+  put (Module.CanonicalName pnm vr nm) =
+    do  put (pnm, vr)
         put nm
 
 

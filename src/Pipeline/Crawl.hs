@@ -18,7 +18,7 @@ import qualified BuildManager as BM
 import qualified Path
 import qualified Pipeline.Crawl.Package as CrawlPackage
 import TheMasterPlan
-    ( CanonicalModule(CanonicalModule), Package, Location(Location)
+    ( Location(Location)
     , PackageGraph(..), PackageData(..)
     , ProjectGraph(..), ProjectData(..)
     )
@@ -26,9 +26,9 @@ import qualified Utils.File as File
 
 
 data ProjectInfo = ProjectInfo
-    { _package :: Package
-    , _exposedModules :: Set.Set CanonicalModule
-    , _allModules :: [CanonicalModule]
+    { _package :: Pkg.Package
+    , _exposedModules :: Set.Set Module.CanonicalName
+    , _allModules :: [Module.CanonicalName]
     , _graph :: ProjectGraph Location
     }
 
@@ -51,7 +51,7 @@ crawl config =
             canonicalizePackageGraph thisPackage packageGraph
 
       let localize moduleName =
-            CanonicalModule thisPackage moduleName
+            Module.canonFromPackage thisPackage moduleName
 
       return $ ProjectInfo
           thisPackage
@@ -73,7 +73,7 @@ getSolution autoYes =
 crawlDependency
     :: BM.Config
     -> Solution.Solution
-    -> Package
+    -> Pkg.Package
     -> BM.Task (ProjectGraph Location)
 crawlDependency config solution pkg@(name,version) =
   let
@@ -90,7 +90,7 @@ crawlDependency config solution pkg@(name,version) =
 
 
 canonicalizePackageGraph
-    :: Package
+    :: Pkg.Package
     -> PackageGraph
     -> ProjectGraph Location
 canonicalizePackageGraph package (PackageGraph pkgData natives foreignDependencies) =
@@ -104,12 +104,12 @@ canonicalizePackageGraph package (PackageGraph pkgData natives foreignDependenci
     }
   where
     canonicalizeKeys =
-        Map.mapKeys (CanonicalModule package)
+        Map.mapKeys (Module.canonFromPackage package)
 
 
 canonicalizePackageData
-    :: Package
-    -> Map.Map Module.Name Package
+    :: Pkg.Package
+    -> Map.Map Module.Name Pkg.Package
     -> PackageData
     -> ProjectData Location
 canonicalizePackageData package foreignDependencies (PackageData filePath deps) =
@@ -118,13 +118,13 @@ canonicalizePackageData package foreignDependencies (PackageData filePath deps) 
         projectDependencies = map canonicalizeModule deps
     }
   where
-    canonicalizeModule :: Module.Name -> CanonicalModule
+    canonicalizeModule :: Module.Name -> Module.CanonicalName
     canonicalizeModule moduleName =
         case Map.lookup moduleName foreignDependencies of
           Nothing ->
-              CanonicalModule package moduleName
+              Module.canonFromPackage package moduleName
           Just foreignPackage ->
-              CanonicalModule foreignPackage moduleName
+              Module.canonFromPackage foreignPackage moduleName
 
 
 union :: ProjectGraph a -> ProjectGraph a -> ProjectGraph a

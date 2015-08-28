@@ -8,17 +8,17 @@ import Elm.Package as Pkg
 import qualified TheMasterPlan as TMP
 
 
-toInterface :: FilePath -> TMP.CanonicalModule -> FilePath
-toInterface root (TMP.CanonicalModule package (Module.Name names)) =
-    root </> inPackage package (List.intercalate "-" names <.> "elmi")
+toInterface :: FilePath -> Module.CanonicalName -> FilePath
+toInterface root (Module.CanonicalName pnm pvr (Module.Name names)) =
+    root </> inPackage (pnm, pvr) (List.intercalate "-" names <.> "elmi")
 
 
-toObjectFile :: FilePath -> TMP.CanonicalModule -> FilePath
-toObjectFile root (TMP.CanonicalModule package (Module.Name names)) =
-    root </> inPackage package (List.intercalate "-" names <.> "elmo")
+toObjectFile :: FilePath -> Module.CanonicalName -> FilePath
+toObjectFile root (Module.CanonicalName pnm pvr (Module.Name names)) =
+    root </> inPackage (pnm, pvr) (List.intercalate "-" names <.> "elmo")
 
 
-toPackageCacheFile :: FilePath -> TMP.Package -> FilePath
+toPackageCacheFile :: FilePath -> Pkg.Package -> FilePath
 toPackageCacheFile root pkg =
     root </> inPackage pkg "graph.dat"
 
@@ -28,6 +28,6 @@ toSource (TMP.Location relativePath _package) =
     relativePath
 
 
-inPackage :: TMP.Package -> FilePath -> FilePath
+inPackage :: Pkg.Package -> FilePath -> FilePath
 inPackage (name, version) relativePath =
     Pkg.toFilePath name </> Pkg.versionToString version </> relativePath
